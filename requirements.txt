@@ -1,0 +1,10 @@
+langchain
+langchain_community
+PyPDF2
+python-dotenv
+streamlit
+faiss-cpu
+streamlit-extras
+huggingface-hub==0.14.1
+InstructorEmbedding==1.0.1
+sentence-transformers==2.2.2
