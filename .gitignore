@@ -2,3 +2,4 @@
 .pkl
 vectorstore
 .faiss
+__pycache__
