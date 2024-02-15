@@ -28,7 +28,7 @@ def get_pdf_text(pdf_file):
 def get_chunk_text(text):
 
     text_splitter = CharacterTextSplitter(
-        separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len
+        chunk_size=300, chunk_overlap=10, length_function=len
     )
 
     chunks = text_splitter.split_text(text)
@@ -79,6 +79,9 @@ def get_conversation_chain(vector_store):
 
 
 def handle_user_input(question):
+    if st.session_state.conversation is None:
+        st.write("Conversation not initialized. Please upload a PDF file first.")
+        return
 
     response = st.session_state.conversation({"question": question})
     st.session_state.chat_history = response["chat_history"]
@@ -139,7 +142,6 @@ def main():
                 st.write("DONE")
 
                 # Create conversation chain
-
                 st.session_state.conversation = get_conversation_chain(vector_store)
 
 
