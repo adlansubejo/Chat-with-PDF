@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 import os
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceHubEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.llms import HuggingFaceHub
 from langchain.memory import ConversationBufferMemory
@@ -44,7 +44,7 @@ def get_vector_store(text_chunks, pdf_name):
 
     # For Huggingface Embeddings
 
-    embeddings = HuggingFaceEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = HuggingFaceHubEmbeddings()
 
     # Create or load the FAISS vector store
     if os.path.exists(f"{DB_FAISS_PATH}/{pdf_name}"):
