@@ -3,6 +3,7 @@ langchain_community
 PyPDF2
 python-dotenv
 streamlit
+streamlit_chat
 faiss-cpu
 streamlit-extras
 huggingface-hub==0.14.1

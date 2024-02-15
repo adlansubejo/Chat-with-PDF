@@ -1,18 +1,14 @@
 import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-import pickle
 import os
 from streamlit_extras.add_vertical_space import add_vertical_space
+from streamlit_chat import message
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.llms import HuggingFaceHub
-from langchain.chains.question_answering import load_qa_chain
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chains import LLMChain
-from langchain.chains import RetrievalQA
-from langchain.memory import ConversationBufferMemory
 
 # Sidebar contents
 with st.sidebar:
@@ -23,7 +19,6 @@ with st.sidebar:
     This app is an LLM-powered chatbot built using:
     - [Streamlit](https://streamlit.io/)
     - [LangChain](https://python.langchain.com/)
-    - [OpenAI](https://platform.openai.com/docs/models) LLM model
 
     """
     )
@@ -31,25 +26,16 @@ with st.sidebar:
     # st.write('')
 
 
-def handle_userinput(user_question):
-    response = st.session_state.conversation({"question": user_question})
-    st.session_state.chat_history = response["chat_history"]
-
-    for i, message in enumerate(st.session_state.chat_history):
-        st.write(message.content)
-
-def get_conversation_chain(vectorstore):
-    # llm = ChatOpenAI()
-    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
-
-    memory = ConversationBufferMemory(
-        memory_key='chat_history', return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectorstore.as_retriever(),
-        memory=memory
+def load_llm():
+    llm = HuggingFaceHub(
+        repo_id="google/flan-t5-xxl",
+        model_kwargs={"temperature": 0.5, "max_length": 512},
     )
-    return conversation_chain
+    return llm
+
+
+# Define the path for generated embeddings
+DB_FAISS_PATH = "vectorstore/db_faiss"
 
 
 def main():
@@ -87,45 +73,74 @@ def main():
 
     # embeddings
     store_name = pdf.name[:-4]
-    # st.write(f'{store_name}')
 
-    if os.path.exists(f"{store_name}.pkl"):
-        with open(f"{store_name}.pkl", "rb") as f:
-            vectorStore = pickle.load(f)
-        # st.write('Embeddings Loaded from the Disk')s
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"},
+    )
+
+    # Create or load the FAISS vector store
+    if os.path.exists(f"{DB_FAISS_PATH}/{store_name}"):
+        db = FAISS.load_local(f"{DB_FAISS_PATH}/{store_name}", embeddings)
     else:
-        embeddings = HuggingFaceEmbeddings()
-        vectorStore = FAISS.from_texts(chunks, embedding=embeddings)
-        with open(f"{store_name}.pkl", "wb") as f:
-            pickle.dump(vectorStore, f)
+        db = FAISS.from_texts(chunks, embedding=embeddings)
+        db.save_local(f"{DB_FAISS_PATH}/{store_name}")
 
-    # Accept user questions/query
-    query = st.text_input("Ask questions about your PDF file:")
+    # Load the language model
+    llm = load_llm()
 
-    buttonProcess = st.button("Process")
+    # Create a conversational chain
+    dbRetriever = db.as_retriever()
 
-    if query and buttonProcess:
-        with st.spinner("Processing..."):
-            # st.write('Processing...')
+    chain = ConversationalRetrievalChain.from_llm(llm=llm, retriever=dbRetriever)
 
-            # doc = VectorStore.similarity_search(query=query, k=3)
+    # Function for conversational chat
+    def conversational_chat(query):
+        result = chain({"question": query, "chat_history": st.session_state["history"]})
+        st.session_state["history"].append((query, result["answer"]))
+        return result["answer"]
 
-            llm = HuggingFaceHub(
-                repo_id="google/flan-t5-xxl",
-                model_kwargs={"temperature": 0.5, "max_length": 512},
+    # Initialize chat history
+    if "history" not in st.session_state:
+        st.session_state["history"] = []
+
+    # Initialize messages
+    if "generated" not in st.session_state:
+        st.session_state["generated"] = ["Hello ! Ask me about " + store_name + " 🤗"]
+
+    if "past" not in st.session_state:
+        st.session_state["past"] = ["Hey ! 👋"]
+
+    # Create containers for chat history and user input
+    response_container = st.container()
+    container = st.container()
+
+    # User input form
+    with container:
+        with st.form(key="my_form", clear_on_submit=True):
+            user_input = st.text_input(
+                "Query:", placeholder="Talk to pdf file 👉 (:", key="input"
             )
+            submit_button = st.form_submit_button(label="Send")
 
-            qa = RetrievalQA.from_chain_type(
-                chain_type="stuff",
-                retriever=vectorStore.as_retriever(),
-                llm=llm,
-                memory=ConversationBufferMemory(memory_key="qa_history"),
-            )
+        if submit_button and user_input:
+            output = conversational_chat(user_input)
+            st.session_state["past"].append(user_input)
+            st.session_state["generated"].append(output)
 
-            response = qa(query)
-
-            st.write(response)
-
+    # Display chat history
+    if st.session_state["generated"]:
+        with response_container:
+            for i in range(len(st.session_state["generated"])):
+                message(
+                    st.session_state["past"][i],
+                    is_user=True,
+                    key=str(i) + "_user",
+                    avatar_style="big-smile",
+                )
+                message(
+                    st.session_state["generated"][i], key=str(i), avatar_style="thumbs"
+                )
 
 
 if __name__ == "__main__":
