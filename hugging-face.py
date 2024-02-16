@@ -64,9 +64,10 @@ def get_conversation_chain(vector_store):
 
     # HuggingFace Model
 
+    repo_id = "mistralai/Mistral-7B-v0.1"
     llm = HuggingFaceHub(
-        repo_id="google/flan-t5-xxl",
-        model_kwargs={"temperature": 0.5, "max_length": 512},
+        repo_id=repo_id,
+        
     )
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
