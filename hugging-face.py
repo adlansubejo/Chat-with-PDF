@@ -145,6 +145,19 @@ def main():
                 # Create conversation chain
                 st.session_state.conversation = get_conversation_chain(vector_store)
 
+    st.markdown(
+        """
+    ## About
+    This app is an LLM-powered chatbot built using:
+    - [Streamlit](https://streamlit.io/)
+    - [LangChain](https://python.langchain.com/)
+
+    based on:
+    [github](https://github.com/Abdullahw72/langchain-chatbot-multiple-PDF)
+
+    """
+    )
+
 
 if __name__ == "__main__":
     main()
