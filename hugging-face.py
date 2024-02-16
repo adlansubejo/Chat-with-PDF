@@ -5,7 +5,7 @@ import os
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFaceHub
+from langchain_community.llms import Replicate
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import bot_template, user_template, css
@@ -64,11 +64,18 @@ def get_conversation_chain(vector_store):
 
     # HuggingFace Model
 
-    repo_id = "mistralai/Mistral-7B-v0.1"
-    llm = HuggingFaceHub(
-        repo_id=repo_id,
+    # repo_id = "mistralai/Mistral-7B-v0.1"
+    # llm = HuggingFaceHub(
+    #     repo_id=repo_id,
         
+    # )
+
+    # Initialize Replicate Llama2 Model
+    llm = Replicate(
+        model="a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5",
+        input={"temperature": 0.75, "max_length": 3000}
     )
+
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
@@ -151,10 +158,10 @@ def main():
         This app is an LLM-powered chatbot built using:
         - [Streamlit](https://streamlit.io/)
         - [LangChain](https://python.langchain.com/)
-    
+
         based on:
         [github](https://github.com/Abdullahw72/langchain-chatbot-multiple-PDF)
-    
+
         """
         )
 
