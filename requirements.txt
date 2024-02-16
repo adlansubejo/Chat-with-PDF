@@ -7,3 +7,4 @@ streamlit_chat
 streamlit_extras
 sentence-transformers
 faiss-cpu
+replicate

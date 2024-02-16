@@ -8,10 +8,33 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.llms import Replicate
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from langchain import PromptTemplate
 from htmlTemplates import bot_template, user_template, css
 
 # Define the path for generated embeddings
 DB_FAISS_PATH = "vectorstore/db_faiss"
+
+custom_prompt_template = """Use the following information to answer the users question, if you dont know the answer
+just say " I don't know the answer". DO NOT make up answers that are not based on facts. Explain with detailed answers
+that are easy to understand
+
+Context: {context}
+Question: {question}
+
+Only return the useful aspects of the answer below and nothing else.
+Helpful answer:
+"""
+
+
+## Code for prompt, retrieval and bot
+def set_custom_prompt():
+    """
+    Prompt template for QA retrieval for each vector store, we also pass in context and question.
+    """
+    prompt = PromptTemplate(
+        template=custom_prompt_template, input_variables=["context", "question"]
+    )
+    return prompt
 
 
 # get the text from the PDF
@@ -56,7 +79,7 @@ def get_vector_store(text_chunks, pdf_name):
     return db
 
 
-def get_conversation_chain(vector_store):
+def get_conversation_chain(vector_store, prompt):
 
     # OpenAI Model
 
@@ -67,20 +90,27 @@ def get_conversation_chain(vector_store):
     # repo_id = "mistralai/Mistral-7B-v0.1"
     # llm = HuggingFaceHub(
     #     repo_id=repo_id,
-        
+
     # )
 
     # Initialize Replicate Llama2 Model
     llm = Replicate(
         model="a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5",
-        input={"temperature": 0.75, "max_length": 3000}
+        input={
+            "temperature": 0.75,
+            "max_length": 3000,
+        },
     )
-
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm, retriever=vector_store.as_retriever(), memory=memory
+        # chain_type="stuff",
+        llm=llm,
+        retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
+        memory=memory,
+        # return_source_documents = True,
+        # chain_type_kwargs = {'prompt':prompt}
     )
 
     return conversation_chain
@@ -150,7 +180,8 @@ def main():
                 st.write("DONE")
 
                 # Create conversation chain
-                st.session_state.conversation = get_conversation_chain(vector_store)
+                qa_prompt = set_custom_prompt()
+                st.session_state.conversation = get_conversation_chain(vector_store, qa_prompt)
 
         st.markdown(
             """
